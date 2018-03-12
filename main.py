@@ -150,11 +150,6 @@ def generate_the_sentence(doc,root,init_track,default_sentence):
 					#write to the output file
 					write_to_output_file(subj_rel[0],subj_rel[1],[right_ST])
 				else:
-					#objects and other dependencies
-					if right_ST.dep == dobj or right_ST.dep == advmod or right_ST.dep == advcl or right_ST.dep == conj or right_ST.dep == pobj or right_ST.dep == prep or right_ST.dep == iobj:
-						generated_sentence[2].append(right_ST)
-					#write
-					write_to_output_file(subj_rel[0],subj_rel[1],generated_sentence)
 					#call the function
 					generate_the_sentence(doc,right_ST,init_track)
 		
