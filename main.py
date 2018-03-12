@@ -31,7 +31,7 @@ class bcolors:
 nlp = sp.load('en')
 
 #write to the file
-def write_to_the_file(subj,relation,objects):
+def write_to_output_file(subj,relation,objects):
 	with open("output.txt","a") as fp:
 		fp.write("{},{},{}".format(subj,relation,objects))
 		fp.write("\n") #new line
@@ -84,10 +84,13 @@ def e1_r_sentence(root,subjects):
 	#return the subject and relation
 	return per_s_r
 
-def generate_the_sentence(doc,root,init_track,default_sentence):
+def generate_the_sentence(doc,root,init_track,call_from):
 	#generated_sentece
 	subj_rel = None
 	generated_sentence = [[],[],[]]
+	#call_from
+	call_from = 0
+	i=1
 	#check variable to generate a new sentence
 	check_variable = None
 	#check left and right
@@ -111,48 +114,52 @@ def generate_the_sentence(doc,root,init_track,default_sentence):
 		for descendant in obj.subtree:
 			assert obj is descendant or obj.is_ancestor(descendant)
 			generated_sentence[2].append(descendant)
-
 		#write in the output file
-		with open("output.txt","w") as fp:
-			fp.write("{},{},{}".format(generated_sentence[0][0],generated_sentence[1][0],generated_sentence[2][0]))
-
+		write_to_output_file(generated_sentence[0],generated_sentence[1],generated_sentence[2])
 
 	else:
-		#first time generation
 		if init_track == 1:
 			subj_rel = e1_r_sentence(root,subjects)
 			init_track += 1 #increment the loop
+		#if length of the subtree is not zero
+		if n_subjects != 0:
+			#LEFT SUBTREE TO TRAVERSE
+			#LST for next iterations
+			if init_track > 1:
+				for left_ST in subjects:
+					#if it has nsubj then we can create a new sentence
+					if left_ST.dep == nsubj or left_ST.dep == advmod:
+						check_variable = 1
+						generated_sentence[0].append(left_ST)
+					#helping words
+					if left_ST.dep == aux or left_ST.dep == neg or left_ST.dep == mark:
+						generated_sentence[1].append(left_ST)
 
-		#LEFT SUBTREE TO TRAVERSE
-		#LST for next iterations
-		if init_track > 1:
-			for left_ST in subjects:
-				#if it has nsubj then we can create a new sentence
-				if left_ST.dep == nsubj:
-					check_variable = 1
-					generated_sentence[0].append(left_ST)
-				#helping words
-				if left_ST.dep = aux or left_ST.dep == neg or left_ST.dep == mark:
-					generated_sentence[1].append(left_ST)
-				#append root
-				generated_sentence[1].append(root)
-				#write the new sentence into a file
-				if check_variable == 1:
-					#write
-					write_to_output_file(generated_sentence[0],generated_sentence[1],[right_ST])
-					check_variable = 0  #reinitialize the variable
-		
+		#append root
+		generated_sentence[1].append(root)
 		#if RST is present
-		if objects != 0 :
+		if n_objects != 0 :
 			for right_ST in objects:
 				#check if they have subtree
 				if(check_if_any_subtrees_present(right_ST)):
+					#write the new sentence into a file
+					if check_variable == 1:
+						#write
+						write_to_output_file(generated_sentence[0],generated_sentence[1],[right_ST])
+						check_variable = 0  #reinitialize the variable
+
+					generated_sentence[2] = right_ST
+					print(generated_sentence)
 					#write to the output file
-					write_to_output_file(subj_rel[0],subj_rel[1],[right_ST])
+					if call_from != 1:
+						write_to_output_file(subj_rel[0],subj_rel[1],[right_ST])
+					else:
+						write_to_output_file(subj_rel[0],subj_rel[1],generated_sentence)
 				else:
 					#call the function
-					generate_the_sentence(doc,right_ST,init_track)
-		
+					call_from = 1
+					generate_the_sentence(doc,right_ST,init_track,call_from)
+
 
 
 if __name__ == '__main__':
@@ -170,6 +177,8 @@ if __name__ == '__main__':
 	root = [token for token in doc if token.head == token][0] #length of the root is always one
 	#initial_track the variable
 	init_track = 1
+	#call from
+	call_from = None
 	#generate the sentence
-	generate_the_sentence(doc,root,init_track)
+	generate_the_sentence(doc,root,init_track,call_from)
 
