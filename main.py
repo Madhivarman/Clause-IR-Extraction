@@ -30,6 +30,12 @@ class bcolors:
 #import the english language
 nlp = sp.load('en')
 
+#write to the file
+def write_to_the_file(subj,relation,objects):
+	with open("output.txt","a") as fp:
+		fp.write("{},{},{}".format(subj,relation,objects))
+		fp.write("\n") #new line
+
 #Dependency Tree
 def generate_dependency_tree(doc):
 	dp = []
@@ -62,12 +68,28 @@ def check_if_any_subtrees_present(token):
 	
 	return bool
 
-def generate_the_sentence(doc,root):
+def e1_r_sentence(root,subjects):
+	per_s_r = [[],[]]
+	for left_side in subjects:
+			if(check_if_any_subtrees_present(left_side)):
+				if left_side.dep == nsubj or left_side.dep == mark:
+					per_s_r[0].append(left_side)
+				#helping words
+				if left_side.dep == aux or left_side.dep == neg:
+					per_s_r[1].append(left_side)
+
+	#append root
+	per_s_r[1].append(root)
+
+	#return the subject and relation
+	return per_s_r
+
+def generate_the_sentence(doc,root,init_track,default_sentence):
 	#generated_sentece
+	subj_rel = None
 	generated_sentence = [[],[],[]]
-	result_list = [] #final result
-	#before verb
-	before_verb = ['aux','neg']
+	#check variable to generate a new sentence
+	check_variable = None
 	#check left and right
 	#nsubj is present in left
 	subjects = list(root.lefts) #words that appears to left
@@ -90,31 +112,52 @@ def generate_the_sentence(doc,root):
 			assert obj is descendant or obj.is_ancestor(descendant)
 			generated_sentence[2].append(descendant)
 
+		#write in the output file
+		with open("output.txt","w") as fp:
+			fp.write("{},{},{}".format(generated_sentence[0][0],generated_sentence[1][0],generated_sentence[2][0]))
+
+
 	else:
-		support_words = []
-		#predict the subject sentence
-		for left_side in subjects:
-			#type is <class Spacy.tokens.token.Token>
-			if(check_if_any_subtrees_present(left_side)):
-				#nsubj
-				if left_side.dep == nsubj:
-					generated_sentence[0].append(left_side)
-				#acc,neg
-				if left_side.dep == aux or left_side.dep == neg:
-					generated_sentence[1].append(left_side)
+		#first time generation
+		if init_track == 1:
+			subj_rel = e1_r_sentence(root,subjects)
+			init_track += 1 #increment the loop
 
-		#append root 
-		generated_sentence[1].append(root)
-
-		#check for right subtree
-		for right_side in objects:
-			#check SubTree is present
-			if(check_if_any_subtrees_present(right_side)):
-				generated_sentence[2].append(right_side)
-			else:
-				print("0")
-
-	separate_the_sentence(generated_sentence)
+		#LEFT SUBTREE TO TRAVERSE
+		#LST for next iterations
+		if init_track > 1:
+			for left_ST in subjects:
+				#if it has nsubj then we can create a new sentence
+				if left_ST.dep == nsubj:
+					check_variable = 1
+					generated_sentence[0].append(left_ST)
+				#helping words
+				if left_ST.dep = aux or left_ST.dep == neg or left_ST.dep == mark:
+					generated_sentence[1].append(left_ST)
+				#append root
+				generated_sentence[1].append(root)
+				#write the new sentence into a file
+				if check_variable == 1:
+					#write
+					write_to_output_file(generated_sentence[0],generated_sentence[1],[right_ST])
+					check_variable = 0  #reinitialize the variable
+		
+		#if RST is present
+		if objects != 0 :
+			for right_ST in objects:
+				#check if they have subtree
+				if(check_if_any_subtrees_present(right_ST)):
+					#write to the output file
+					write_to_output_file(subj_rel[0],subj_rel[1],[right_ST])
+				else:
+					#objects and other dependencies
+					if right_ST.dep == dobj or right_ST.dep == advmod or right_ST.dep == advcl or right_ST.dep == conj or right_ST.dep == pobj or right_ST.dep == prep or right_ST.dep == iobj:
+						generated_sentence[2].append(right_ST)
+					#write
+					write_to_output_file(subj_rel[0],subj_rel[1],generated_sentence)
+					#call the function
+					generate_the_sentence(doc,right_ST,init_track)
+		
 
 
 if __name__ == '__main__':
@@ -130,5 +173,8 @@ if __name__ == '__main__':
 	#start iterating through tree to generate Clause Sentences
 	#find the root
 	root = [token for token in doc if token.head == token][0] #length of the root is always one
+	#initial_track the variable
+	init_track = 1
 	#generate the sentence
-	generate_the_sentence(doc,root)
+	generate_the_sentence(doc,root,init_track)
+
